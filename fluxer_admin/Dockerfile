@@ -8,7 +8,7 @@ ARG TARGETARCH
 WORKDIR /usr/src/app
 
 RUN apt-get update \
-	&& apt-get install -y --no-install-recommends ca-certificates nodejs npm pkg-config \
+	&& apt-get install -y --no-install-recommends ca-certificates nodejs npm pkg-config libheif-dev \
 	&& npm install -g pnpm@10.29.3 \
 	&& rm -rf /var/lib/apt/lists/*
 
