@@ -8,9 +8,8 @@ ARG TARGETARCH
 WORKDIR /usr/src/app
 
 RUN apt-get update \
-	&& apt-get install -y --no-install-recommends ca-certificates nodejs npm pkg-config \
+	&& apt-get install -y --no-install-recommends ca-certificates nodejs npm pkg-config libvips-dev libheif-dev \
 	&& npm install -g pnpm@10.29.3 \
-	&& rm -rf /var/lib/apt/lists/*
 
 RUN npm install --no-audit --no-fund @tailwindcss/cli@4.2.1 tailwindcss@4.2.1
 RUN TAILWIND_OXIDE_VERSION="4.2.1" \
