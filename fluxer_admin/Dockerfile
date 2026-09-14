@@ -7,7 +7,6 @@ ARG TARGETARCH
 
 WORKDIR /usr/src/app
 
-# Instalação das dependências de build (com correção no final do comando)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates nodejs npm pkg-config libvips-dev libheif-dev \
     && rm -rf /var/lib/apt/lists/* \
@@ -20,21 +19,18 @@ RUN TAILWIND_OXIDE_VERSION="4.2.1" \
         arm64) OXIDE_PKG="@tailwindcss/oxide-linux-arm64-gnu" ;; \
         *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
     esac \
-    && npm install --no-audit --no-fund "${OXIDE_PKG}@${TAILWIND_OXIDE_VERSION}" \
-    && ls -la node_modules/.bin/tailwindcss
+    && npm install --no-audit --no-fund "${OXIDE_PKG}@${TAILWIND_OXIDE_VERSION}"
 
 COPY Cargo.lock Cargo.lock
 COPY fluxer_admin fluxer_admin
 COPY fluxer_common fluxer_common
-COPY packages/fonts/manifest.json packages/fonts/manifest.json
-COPY packages/fonts/NOTICE.md packages/fonts/NOTICE.md
-COPY packages/fonts/LICENSE-IBM-PLEX.txt packages/fonts/LICENSE-IBM-PLEX.txt
-COPY packages/fonts/files/FluxerSans packages/fonts/files/FluxerSans
-COPY packages/fonts/files/FluxerMono packages/fonts/files/FluxerMono
+COPY fluxer_media_proxy fluxer_media_proxy
+COPY packages packages
 
+# CORREÇÃO: Adicionando fluxer_media_proxy no workspace para resolver a árvore de dependências
 RUN printf '%s\n' \
     '[workspace]' \
-    'members = ["fluxer_admin", "fluxer_common"]' \
+    'members = ["fluxer_admin", "fluxer_common", "fluxer_media_proxy"]' \
     'resolver = "2"' \
     '' \
     '[workspace.package]' \
@@ -49,6 +45,7 @@ RUN printf '%s\n' \
 
 ENV FLUXER_BUILD_VERSION="${BUILD_VERSION}"
 
+# Compila apenas o fluxer_admin
 RUN cargo build --release -p fluxer_admin \
     && cp target/release/fluxer_admin /usr/local/bin/fluxer-admin
 
@@ -66,21 +63,8 @@ ARG BUILD_VERSION=""
 ARG SOURCE_SHA=""
 ARG SOURCE_DATE=""
 
-LABEL org.opencontainers.image.title="fluxer-admin"
-LABEL org.opencontainers.image.description="Fluxer admin console"
-LABEL org.opencontainers.image.licenses="AGPL-3.0-or-later"
-LABEL org.opencontainers.image.vendor="Fluxer"
-LABEL org.opencontainers.image.url="https://fluxer.app"
-LABEL org.opencontainers.image.documentation="https://docs.fluxer.app"
-LABEL org.opencontainers.image.source="https://github.com/fluxerapp/fluxer"
-LABEL org.opencontainers.image.version="${BUILD_VERSION}"
-LABEL org.opencontainers.image.revision="${SOURCE_SHA}"
-LABEL org.opencontainers.image.created="${SOURCE_DATE}"
-LABEL app.fluxer.build-version="${BUILD_VERSION}"
-
 WORKDIR /usr/local/bin
 
-# CORREÇÃO AQUI: Instalar as bibliotecas de execução (sem os pacotes -dev)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        ca-certificates \
