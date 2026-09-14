@@ -7,19 +7,21 @@ ARG TARGETARCH
 
 WORKDIR /usr/src/app
 
+# Instalação das dependências de build (com correção no final do comando)
 RUN apt-get update \
-	&& apt-get install -y --no-install-recommends ca-certificates nodejs npm pkg-config libvips-dev libheif-dev \
-	&& npm install -g pnpm@10.29.3 \
+    && apt-get install -y --no-install-recommends ca-certificates nodejs npm pkg-config libvips-dev libheif-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && npm install -g pnpm@10.29.3
 
 RUN npm install --no-audit --no-fund @tailwindcss/cli@4.2.1 tailwindcss@4.2.1
 RUN TAILWIND_OXIDE_VERSION="4.2.1" \
-	&& case "${TARGETARCH}" in \
-		amd64) OXIDE_PKG="@tailwindcss/oxide-linux-x64-gnu" ;; \
-		arm64) OXIDE_PKG="@tailwindcss/oxide-linux-arm64-gnu" ;; \
-		*) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
-	esac \
-	&& npm install --no-audit --no-fund "${OXIDE_PKG}@${TAILWIND_OXIDE_VERSION}" \
-	&& ls -la node_modules/.bin/tailwindcss
+    && case "${TARGETARCH}" in \
+        amd64) OXIDE_PKG="@tailwindcss/oxide-linux-x64-gnu" ;; \
+        arm64) OXIDE_PKG="@tailwindcss/oxide-linux-arm64-gnu" ;; \
+        *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+    && npm install --no-audit --no-fund "${OXIDE_PKG}@${TAILWIND_OXIDE_VERSION}" \
+    && ls -la node_modules/.bin/tailwindcss
 
 COPY Cargo.lock Cargo.lock
 COPY fluxer_admin fluxer_admin
@@ -29,32 +31,34 @@ COPY packages/fonts/NOTICE.md packages/fonts/NOTICE.md
 COPY packages/fonts/LICENSE-IBM-PLEX.txt packages/fonts/LICENSE-IBM-PLEX.txt
 COPY packages/fonts/files/FluxerSans packages/fonts/files/FluxerSans
 COPY packages/fonts/files/FluxerMono packages/fonts/files/FluxerMono
+
 RUN printf '%s\n' \
-	'[workspace]' \
-	'members = ["fluxer_admin", "fluxer_common"]' \
-	'resolver = "2"' \
-	'' \
-	'[workspace.package]' \
-	'edition = "2024"' \
-	'license = "AGPL-3.0-or-later"' \
-	'' \
-	'[profile.release]' \
-	'lto = "fat"' \
-	'codegen-units = 1' \
-	'strip = "symbols"' \
-	> Cargo.toml
+    '[workspace]' \
+    'members = ["fluxer_admin", "fluxer_common"]' \
+    'resolver = "2"' \
+    '' \
+    '[workspace.package]' \
+    'edition = "2024"' \
+    'license = "AGPL-3.0-or-later"' \
+    '' \
+    '[profile.release]' \
+    'lto = "fat"' \
+    'codegen-units = 1' \
+    'strip = "symbols"' \
+    > Cargo.toml
 
 ENV FLUXER_BUILD_VERSION="${BUILD_VERSION}"
 
 RUN cargo build --release -p fluxer_admin \
-	&& cp target/release/fluxer_admin /usr/local/bin/fluxer-admin
+    && cp target/release/fluxer_admin /usr/local/bin/fluxer-admin
 
 RUN test -s target/release/build/fluxer_admin-*/out/static/app.css \
-	&& echo "Tailwind CSS compiled successfully"
+    && echo "Tailwind CSS compiled successfully"
 
 RUN test "$(ls target/release/build/fluxer_admin-*/out/static/fonts/*.woff2 | wc -l)" -eq 16 \
-	&& ls target/release/build/fluxer_admin-*/out/static/fonts/fonts.*.css \
-	&& echo "Latin-core fonts bundled successfully"
+    && ls target/release/build/fluxer_admin-*/out/static/fonts/fonts.*.css \
+    && echo "Latin-core fonts bundled successfully"
+
 
 FROM debian:bookworm-slim AS runtime
 
@@ -76,9 +80,13 @@ LABEL app.fluxer.build-version="${BUILD_VERSION}"
 
 WORKDIR /usr/local/bin
 
+# CORREÇÃO AQUI: Instalar as bibliotecas de execução (sem os pacotes -dev)
 RUN apt-get update \
-	&& apt-get install -y --no-install-recommends ca-certificates \
-	&& rm -rf /var/lib/apt/lists/*
+    && apt-get install -y --no-install-recommends \
+       ca-certificates \
+       libvips42 \
+       libheif1 \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local/bin/fluxer-admin /usr/local/bin/fluxer-admin
 
